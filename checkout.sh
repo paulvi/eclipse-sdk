@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #Checkout
-#git clone -b master --recursive git://git.eclipse.org/gitroot/platform/eclipse.platform.releng.aggregator.git source
+git clone -b master --recursive git://git.eclipse.org/gitroot/platform/eclipse.platform.releng.aggregator.git source
 
 #Setup
 export MAVEN_OPTS="-Xmx2048m"
@@ -10,9 +10,9 @@ cp -r modules-generator source
 cp master-pom/pom.xml source
 
 #Build the SDK
-#pushd source/eclipse.platform.releng.aggregator
-#mvn clean verify javadoc:jar -Dmaven.javadoc.failOnError=false --fail-at-end
-#popd
+pushd source/eclipse.platform.releng.aggregator
+mvn clean verify javadoc:jar -Dmaven.javadoc.failOnError=false --fail-at-end
+popd
 
 #Package and publish the SDK
 pushd source

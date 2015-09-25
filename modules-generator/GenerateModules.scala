@@ -63,7 +63,7 @@ def deploy(directories: List[Path]) = {
     val goals = List(
       "org.apache.maven.plugins:maven-gpg-plugin:sign"
       ,"org.apache.maven.plugins:maven-install-plugin:2.3.1:install"
-//      ,"org.apache.maven.plugins:maven-deploy-plugin:2.8.2:deploy"
+      ,"org.apache.maven.plugins:maven-deploy-plugin:2.8.2:deploy"
     )
     request.setGoals(goals)
     invoker.execute(request)
