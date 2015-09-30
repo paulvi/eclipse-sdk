@@ -1,4 +1,5 @@
 import java.io.File
+
 import java.nio.file._
 import java.nio.file.attribute.BasicFileAttributes
 
@@ -11,44 +12,42 @@ import scala.xml.XML
  * @author Adedayo Adetoye.
  */
 
-
 copyJars
-
 
 def copyJars = {
   var projectDirectories = Set.empty[Path]
-  val jars = findJarFiles(new File("").toPath)
+  val path = new File("").toPath
+  val jars = findJarFiles(path)
   jars.par.filter(jar => {
     jar.getParent.endsWith("target")
   } && jar.startsWith("source")
   ).foreach(jar => {
-    println(jar)
     val name = jar.getFileName.toString
+    val index0 = name.indexOf('-')
     val index = name.indexOf("-SNAPSHOT")
-    val dir = name.substring(0, index)
-    projectDirectories += Paths.get(s"out_maven/$dir")
-    val target = Paths.get(s"out_maven/$dir/target/")
-    if (!Files.exists(target)) {
-      Files.createDirectories(target)
+
+    if (index != -1) {
+      val dir = name.substring(0, index0)
+      projectDirectories += Paths.get(s"out_maven/$dir")
+      val target = Paths.get(s"out_maven/$dir/target/")
+      if (!Files.exists(target)) {
+        Files.createDirectories(target)
+      }
+
+      val file = jar.getParent.relativize(
+        if (name.contains("source") || name.contains("src"))
+          Paths.get(dir + "-sources.jar")
+        else if (name.contains("javadoc"))
+          Paths.get(dir + "-javadoc.jar")
+        else
+          Paths.get(dir + ".jar")
+      )
+      val src = file.getParent
+      Files.copy(jar, target.resolve(src.relativize(file)), StandardCopyOption.REPLACE_EXISTING)
+      val version = name.substring(index0+1, index)
+      XML.save(s"out_maven/$dir/pom.xml", generatePOM(dir, version))
     }
-
-    val file = jar.getParent.relativize(
-      if (name.contains("source") || name.contains("src"))
-        Paths.get(dir + "-sources.jar")
-      else if (name.contains("javadoc"))
-        Paths.get(dir + "-javadoc.jar")
-      else
-        Paths.get(dir + ".jar")
-    )
-
-    val src = file.getParent
-    //    println(s"Copying file $file")
-    Files.copy(jar, target.resolve(src.relativize(file)), StandardCopyOption.REPLACE_EXISTING)
-    val index0 = name.indexOf("-") + 1
-    val version = name.substring(index0,index)
-    XML.save(s"out_maven/$dir/pom.xml", generatePOM(dir,version))
   })
-
   deploy(projectDirectories.toList)
 }
 
@@ -58,10 +57,13 @@ def deploy(directories: List[Path]) = {
   directories.par.foreach(dir => {
     val invoker = new DefaultInvoker
     val request = new DefaultInvocationRequest
-    request.setPomFile(new File(s"out_maven/$dir/pom.xml"))
+    request.setPomFile(new File(s"$dir/pom.xml"))
     import scala.collection.JavaConversions._
     val goals = List(
-      "org.apache.maven.plugins:maven-gpg-plugin:sign"
+      "org.apache.maven.plugins:maven-jar-plugin:jar"
+      ,"org.apache.maven.plugins:maven-source-plugin:jar-no-fork"
+      ,"org.apache.maven.plugins:maven-javadoc-plugin:jar"
+      ,"org.apache.maven.plugins:maven-gpg-plugin:sign"
       ,"org.apache.maven.plugins:maven-install-plugin:2.3.1:install"
       ,"org.apache.maven.plugins:maven-deploy-plugin:2.8.2:deploy"
     )
@@ -100,7 +102,6 @@ class FileFinder(callback: Path => Unit)(ext: String)(fileSystem: FileSystem = F
 class CopyDirVisitor(src: Path, dest: Path) extends SimpleFileVisitor[Path] {
   override def preVisitDirectory(dir: Path, attrs: BasicFileAttributes) = {
     val target = dest.resolve(src.relativize(dir))
-    println("Copying files to " + dest)
     if (!Files.exists(target)) Files.createDirectory(target)
     FileVisitResult.CONTINUE
   }
@@ -119,10 +120,10 @@ def generatePOM(project: String, version: String) = {
              xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
       <modelVersion>4.0.0</modelVersion>
       <groupId>com.github.adedayo.eclipse.sdk</groupId>
-      <artifactId>{project}</artifactId>
-      <version>{branch}</version>
+      <artifactId> {project} </artifactId>
+      <version> {branch} </version>
       <packaging>jar</packaging>
-      <name>{project}</name>
+      <name> {project} </name>
       <url>http://www.eclipse.org</url>
       <description>A packaging of the eclipse sdk {project} library.</description>
 
@@ -173,7 +174,7 @@ def generatePOM(project: String, version: String) = {
             <executions>
               <execution>
                 <id>sign-artifacts</id>
-                <phase>verify</phase>
+                <phase>package</phase>
                 <goals>
                   <goal>sign</goal>
                 </goals>

@@ -49,7 +49,7 @@
     </properties>
 
     <modules>
-        <module>maven-ant</module>
+        <!--<module>maven-ant</module>-->
         <module>modules-generator</module>
     </modules>
 
